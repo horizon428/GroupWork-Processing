@@ -20,6 +20,9 @@ int[] ManListLenthList=new int[1];
 int[] InsideRPointCount=new int[1];
 int MaxManCount=100000;
 int lineLength=1000;
+PVector Q1KB;
+PVector Q2KB;
+float TheMiniCount=0.00001;
 
 void setup()
 {
@@ -60,6 +63,10 @@ void setup()
 void draw()
 {   
   //boolean a = false;
+  if(ManList.size()%(MaxManCount/10)==0)
+  {
+    saveFrame("Pic/ManCount/ManCount"+ManList.size()+"Frame.png");
+  }
   if(ReDraw)
   {
     background(250);
@@ -294,12 +301,27 @@ void FileExport()
   saveStrings("DataExport/TotalE.txt", str(TotalEList));  
   saveStrings("DataExport/PIXNearbyPointCount.txt",str(PIXNearbyPointCount));
   saveStrings("DataExport/ManListLenthList.txt",str(ManListLenthList));
+  float[] AllManLocalX=new float[ManList.size()];
+  float[] AllManLocalY=new float[ManList.size()];
+  for(int i=0;i<ManList.size();i++)
+  {
+    AllManLocalX[i]=ManList.get(i).Local.x;
+    AllManLocalY[i]=ManList.get(i).Local.y;
+  }
+  saveStrings("DataExport/ManListXLocal.txt",str(AllManLocalX));
+  saveStrings("DataExport/ManListYLocal.txt",str(AllManLocalY));
   RProcessing();
 }
 void RProcessing()
 {
-
-  float Farthest=max(max(MinXLocal-width/2,MaxXLocal-width/2),max(MinYLocal-height/2,MinYLocal-height/2));
+  for(Man OnePoint:ManList)
+  {
+    if(OnePoint.Local.x==width/2 && OnePoint.Local.y==height/2)
+    {
+      InsideRPointCount[0]++;
+    }
+  }
+  float Farthest=max(max(width/2-MinXLocal,MaxXLocal-width/2),max(height/2-MinYLocal,MinYLocal-height/2));
   for(int R=1;R<Farthest;R++)
   {
     int TotalPointCount=0;
@@ -322,18 +344,18 @@ void DrawXYCoordinate()
   {
     FrameNumber[i]=i;
   }
-  drawCoordinate(float(FrameNumber),float(AreaSizeList),false);
+  drawCoordinate(float(FrameNumber),float(AreaSizeList),false,false);
   saveFrame("Pic/AreaSizeList.png");
-  drawCoordinate(float(FrameNumber),float(TotalEList),false);
+  drawCoordinate(float(FrameNumber),float(TotalEList),false,false);
   saveFrame("Pic/TotalEList.png");
-  drawCoordinate(float(FrameNumber),float(ManListLenthList),false);
+  drawCoordinate(float(FrameNumber),float(ManListLenthList),false,false);
   saveFrame("Pic/ManListLenthList.png");
   int[] RCount=new int[InsideRPointCount.length];
   for(int i=1;i<RCount.length;i++)
   {
     RCount[i]=i;
   }
-  drawCoordinate(float(RCount),float(InsideRPointCount),false);
+  drawCoordinate(float(RCount),float(InsideRPointCount),false,false);
   saveFrame("Pic/InsideRPointCount.png");
   
   float[] LogManCount=new float[ManListLenthList.length];
@@ -379,16 +401,37 @@ void DrawXYCoordinate()
   saveStrings("DataExport/LogTotalE.txt", str(LogTotalE));  
   saveStrings("DataExport/LogAreaSize.txt", str(LogAreaSize));  
   
-  drawCoordinate(LogManCount,LogAreaSize,true);
+  //for(int i=0;i<LogManCount.length;i++)
+  //{
+  //  if(LogManCount[i]==0)
+  //  {
+  //    LogAreaSize[i]=0;
+  //  }
+  //  else
+  //  {
+  //    break;
+  //  }
+  //}
+  
+  drawCoordinate(LogManCount,LogAreaSize,true,true);
   saveFrame("Pic/LogAreaSize.png");
   
-  drawCoordinate(LogManCount,LogTotalE,true);
+  drawCoordinate(LogManCount,LogTotalE,true,true);
   saveFrame("Pic/LogTotalE.png");
   
+  float[] testX=new float[800];
+  float[] testY=new float[testX.length];
+  for(int i=0;i<testX.length;i++)
+  {
+    testX[i]=i;
+    testY[i]=2.544102*i+2.36165; 
+  }
+  drawCoordinate(testX,testY,true,true);
+  saveFrame("Pic/TestXY.png");
 }
 
 
-void drawCoordinate(float[] XCount,float[] YCount,Boolean IntOrFloat)
+void drawCoordinate(float[] XCount,float[] YCount,Boolean IntOrFloat,Boolean DrawLinearRegression)
 {
   background(250);
   stroke(126);
@@ -419,19 +462,160 @@ void drawCoordinate(float[] XCount,float[] YCount,Boolean IntOrFloat)
     else
     {
       text(int(MinYCount+(y/(width/20))*(MaxYCount-MinYCount)/20),0,height-y);
-    }
-    
+    }    
   }
   stroke(255);
   loadPixels();
   int TrueXCount=0;
   int TrueYCount=0;
-  
+  int LinearRegressionCount=0;
+  PVector KB=new PVector(0,0);
+  if(DrawLinearRegression)
+  {
+    KB=LinearRegression(XCount,YCount);
+  }
   for(int i=0;i<XCount.length;i++)
   {
-    TrueXCount=int(map(XCount[i],MinXCount,MaxXCount,0,width-1));
-    TrueYCount=int(map(YCount[i],MinYCount,MaxYCount,0,height-1));
-    pixels[TrueXCount*width+height-TrueYCount]=color(0);
+    TrueXCount=int(map(XCount[i],MinXCount,MaxXCount,1,width));
+    TrueYCount=int(map(YCount[i],MinYCount,MaxYCount,1,height));
+    if(DrawLinearRegression)
+    {
+      float temp=KB.x*XCount[i]+KB.y;
+      if(temp<MinYCount)
+      {
+        temp=MinYCount;
+      }
+      else if(temp>MaxYCount)
+      {
+        temp=MaxYCount;
+      }
+      LinearRegressionCount=int(map(temp,MinYCount,MaxYCount,1,height));
+      pixels[TrueXCount+width*(height-LinearRegressionCount)]=color(255,0,0);
+    }
+    pixels[TrueXCount+width*(height-TrueYCount)]=color(0);
   }
   updatePixels();
+  if(DrawLinearRegression)
+  {
+    if(KB.y>=0)
+    {
+      text("y="+KB.x+"x+"+KB.y,width*0.8,height*0.8);
+    }
+    else
+    {
+      text("y="+KB.x+"x"+KB.y,width*0.8,height*0.8);
+    }
+  }
+}
+
+//void LinearRegression(float[] XCount,float[] YCount)
+//{
+//  float k=0.0001;
+//  float b=0.0001;
+//  float[] Difference=new float[XCount.length];
+//  for(;k<60;k+=0.0001)
+//  {
+//    for(int i=0;i<XCount.length;i++)
+//    {
+//      Difference[i]=k*XCount[i]-YCount[i];
+//    }
+    
+//  }
+//}
+
+PVector LinearRegression(float[] XCount,float[] YCount)
+{
+  float CountKPlus=CalculateRMS(0.0001,0,XCount,YCount);
+  float CountKSub=CalculateRMS(-0.0001,0,XCount,YCount);
+  float CountBPlus=CalculateRMS(1,0.0001,XCount,YCount);
+  float CountBSub=CalculateRMS(1,-0.0001,XCount,YCount);
+  int KFlog=1;
+  if(CountKPlus>CountKSub)
+  {
+    KFlog=-1;
+  }
+  int BFlog=1;
+  if(CountBPlus>CountBSub)
+  {
+    BFlog=-1;
+  }
+  float K=0;
+  float B=0;
+  float KStepSize=5;
+  float BStepSize=5;
+  K=TheKLoop(K,KStepSize,KFlog,B,XCount,YCount);
+  B=TheBLoop(K*KFlog,B,BStepSize,BFlog,XCount,YCount);
+  
+  PVector PVectorBack=new PVector(K,B);
+  return PVectorBack;
+  
+  //float SqError=CalculateRMS(KFlog*K,B,XCount,YCount);
+  //String StringBack="y=";
+  //if(KFlog==-1)
+  //{
+  //  StringBack+="-";
+  //}
+  //StringBack+=K+"x";
+  //if(BFlog==-1)
+  //{
+  //  StringBack+="-";
+  //}
+  //else
+  //{
+  //  StringBack+="+";
+  //}
+  //StringBack+=B+"\r\nSqError="+SqError+"\r\n";
+  //return StringBack;
+}
+
+
+
+float TheKLoop(float K,float KStepSize,int KFlog,float B,float[] XCount,float[] YCount)
+{
+  //if(K%TheMiniCount>TheMiniCount/10)
+  if(KStepSize<TheMiniCount)
+  {
+    return K;
+  }
+  float CountKPlus=CalculateRMS(KFlog*(K+KStepSize+TheMiniCount),B,XCount,YCount);
+  float CountKSub=CalculateRMS(KFlog*(K+KStepSize-TheMiniCount),B,XCount,YCount);
+  if(CountKPlus>CountKSub)
+  {
+    KStepSize=KStepSize/2;    
+  }
+  else
+  {
+    K+=KStepSize;
+  }
+  return TheKLoop(K,KStepSize,KFlog,B,XCount,YCount);
+}
+
+float TheBLoop(float K,float B,float BStepSize,int BFlog,float[] XCount,float[] YCount)
+{
+  //if(B%TheMiniCount>TheMiniCount/10)
+  if(BStepSize<TheMiniCount)
+  {
+    return B;
+  }
+  float CountBPlus=CalculateRMS(K,BFlog*(B+BStepSize+TheMiniCount),XCount,YCount);
+  float CountBSub=CalculateRMS(K,BFlog*(B+BStepSize-TheMiniCount),XCount,YCount);
+  if(CountBPlus>CountBSub)
+  {
+    BStepSize=BStepSize/2;    
+  }
+  else
+  {
+    B+=BStepSize;
+  }
+  return TheBLoop(K,B,BStepSize,BFlog,XCount,YCount);
+}
+
+float CalculateRMS(float K,float B,float[] XCount,float[] YCount)
+{
+  float sum=0;
+  for(int i=0;i<XCount.length;i++)
+  {
+    sum+=sq(K*XCount[i]+B-YCount[i]);
+  }
+  return sum;
 }
